@@ -1,19 +1,57 @@
-const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
-const axios = require('axios');
+const { EmbedBuilder } = require('discord.js');
 
 class WelcomeSystem {
     constructor(client) {
         this.client = client;
         this.welcomeConfigs = new Map();
-        this.boosterGifs = [
-            'https://tenor.com/en-GB/view/gay-gay-cop-gay-cops-gay-police-gay-durango-gif-10039269045960132047',
-            'https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif',
-            'https://media.giphy.com/media/26tknCqiJrBQG6DrC/giphy.gif',
-            'https://media.giphy.com/media/l0HU7JI1uHRQmQqk0/giphy.gif'
-        ];
         
-        this.defaultWelcomeGif = 'https://tenor.com/en-GB/view/anime-gif-20554541';
-        this.defaultBoosterGif = 'https://tenor.com/en-GB/view/gay-gay-cop-gay-cops-gay-police-gay-durango-gif-10039269045960132047';
+        // Use direct GIF URLs, not Tenor links
+        this.defaultWelcomeGif = 'https://media.tenor.com/ISx2jQ5l8eAAAAAC/welcome.gif'; // Direct GIF
+        this.defaultBoosterGif = 'https://media.tenor.com/YpJ2F4YVhU0AAAAC/celebration.gif'; // Direct GIF
+        
+        // Alternative GIF URLs
+        this.alternativeGifs = {
+            welcome: [
+                'https://media.tenor.com/ISx2jQ5l8eAAAAAC/welcome.gif',
+                'https://media.tenor.com/0AVbKGY_MxMAAAAM/welcome.gif',
+                'https://media.tenor.com/t3P7OVB_kUEAAAAM/anime-welcome.gif',
+                'https://media.giphy.com/media/26tknCqiJrBQG6DrC/giphy.gif',
+                'https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif'
+            ],
+            booster: [
+                'https://media.tenor.com/YpJ2F4YVhU0AAAAC/celebration.gif',
+                'https://media.tenor.com/QJvwqT7aBkYAAAAM/woohoo-celebrate.gif',
+                'https://media.giphy.com/media/26tknCqiJrBQG6DrC/giphy.gif',
+                'https://media.giphy.com/media/l0HU7JI1uHRQmQqk0/giphy.gif'
+            ]
+        };
+    }
+
+    // Convert Tenor URL to direct GIF URL
+    convertTenorUrl(tenorUrl) {
+        // If it's already a direct GIF URL, return as is
+        if (tenorUrl.includes('.gif') && !tenorUrl.includes('tenor.com/view')) {
+            return tenorUrl;
+        }
+        
+        // Try to extract from Tenor share URL
+        if (tenorUrl.includes('tenor.com/view')) {
+            // This is a view page, not direct GIF
+            // Return a default GIF instead
+            return this.defaultWelcomeGif;
+        }
+        
+        // If it's a Tenor GIF ID
+        if (tenorUrl.includes('tenor.com')) {
+            // Extract GIF ID and construct direct URL
+            const match = tenorUrl.match(/tenor\.com\/view\/([^\-]+)/);
+            if (match && match[1]) {
+                return `https://media.tenor.com/${match[1]}.gif`;
+            }
+        }
+        
+        // Default fallback
+        return tenorUrl;
     }
 
     // Setup welcome system for a guild
@@ -57,32 +95,42 @@ class WelcomeSystem {
         const channel = member.guild.channels.cache.get(config.channelId);
         if (!channel) return;
 
-        // Parse message with variables
+        // Convert GIF URL if needed
+        const safeGifUrl = this.convertTenorUrl(config.gifUrl || this.defaultWelcomeGif);
+        
+        // Parse message
         const message = this.parseWelcomeMessage(config.message, member);
         
-        // Create embed
-        const embed = new EmbedBuilder()
-            .setColor(config.embedColor)
-            .setTitle(`🎉 Welcome to ${member.guild.name}!`)
-            .setDescription(message)
-            .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 512 }))
-            .setImage(config.gifUrl)
-            .addFields(
-                { name: '👤 Account Created', value: `<t:${Math.floor(member.user.createdTimestamp/1000)}:R>`, inline: true },
-                { name: '📅 Joined', value: `<t:${Math.floor(Date.now()/1000)}:R>`, inline: true },
-                { name: '👥 Member Count', value: `#${member.guild.memberCount}`, inline: true }
-            )
-            .setFooter({ 
-                text: `Kudumbasree Welcome System • ${member.guild.name}`,
-                iconURL: member.guild.iconURL()
-            })
-            .setTimestamp();
+        try {
+            // Create embed
+            const embed = new EmbedBuilder()
+                .setColor(config.embedColor || '#FF6B6B')
+                .setTitle(`🎉 Welcome to ${member.guild.name}!`)
+                .setDescription(message)
+                .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 512 }))
+                .setImage(safeGifUrl)
+                .addFields(
+                    { name: '👤 Account Created', value: `<t:${Math.floor(member.user.createdTimestamp/1000)}:R>`, inline: true },
+                    { name: '📅 Joined', value: `<t:${Math.floor(Date.now()/1000)}:R>`, inline: true },
+                    { name: '👥 Member Count', value: `#${member.guild.memberCount}`, inline: true }
+                )
+                .setFooter({ 
+                    text: `Kudumbasree Welcome System • ${member.guild.name}`,
+                    iconURL: member.guild.iconURL()
+                })
+                .setTimestamp();
 
-        // Send welcome message
-        await channel.send({ 
-            content: `${member}`,
-            embeds: [embed] 
-        });
+            // Send welcome message
+            await channel.send({ 
+                content: `${member}`,
+                embeds: [embed] 
+            });
+
+        } catch (error) {
+            console.error('Welcome message error:', error);
+            // Fallback: Send simple welcome
+            await channel.send(`${member} Welcome to **${member.guild.name}**! 🎉 You're member #${member.guild.memberCount}`);
+        }
 
         // Send DM if enabled
         if (config.sendDM && !member.user.bot) {
@@ -141,41 +189,51 @@ class WelcomeSystem {
         const channel = member.guild.channels.cache.get(config.channelId);
         if (!channel) return;
 
+        // Convert GIF URL if needed
+        const safeGifUrl = this.convertTenorUrl(config.gifUrl || this.defaultBoosterGif);
+        
         const boostLevel = member.premiumSince ? '2' : '1';
         const totalBoosts = member.guild.premiumSubscriptionCount || 0;
 
-        // Parse message with variables
+        // Parse message
         const message = config.message
             .replace(/{user}/g, member.toString())
             .replace(/{server}/g, member.guild.name)
             .replace(/{boostLevel}/g, boostLevel)
             .replace(/{totalBoosts}/g, totalBoosts);
 
-        // Create embed
-        const embed = new EmbedBuilder()
-            .setColor(config.embedColor)
-            .setTitle('🚀 NEW SERVER BOOSTER!')
-            .setDescription(message)
-            .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 512 }))
-            .setImage(config.gifUrl)
-            .addFields(
-                { name: '👤 Booster', value: `${member}`, inline: true },
-                { name: '⭐ Boost Level', value: `Tier ${boostLevel}`, inline: true },
-                { name: '📈 Total Boosts', value: totalBoosts.toString(), inline: true },
-                { name: '🎁 Benefits', value: 'Special roles & perks unlocked!', inline: false }
-            )
-            .setFooter({ 
-                text: `${member.guild.name} Booster System`,
-                iconURL: member.guild.iconURL()
-            })
-            .setTimestamp();
+        try {
+            // Create embed
+            const embed = new EmbedBuilder()
+                .setColor(config.embedColor || '#9b59b6')
+                .setTitle('🚀 NEW SERVER BOOSTER!')
+                .setDescription(message)
+                .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 512 }))
+                .setImage(safeGifUrl)
+                .addFields(
+                    { name: '👤 Booster', value: `${member}`, inline: true },
+                    { name: '⭐ Boost Level', value: `Tier ${boostLevel}`, inline: true },
+                    { name: '📈 Total Boosts', value: totalBoosts.toString(), inline: true },
+                    { name: '🎁 Benefits', value: 'Special roles & perks unlocked!', inline: false }
+                )
+                .setFooter({ 
+                    text: `${member.guild.name} Booster System`,
+                    iconURL: member.guild.iconURL()
+                })
+                .setTimestamp();
 
-        const content = config.pingRole ? `<@&${config.pingRole}>` : '';
-        
-        await channel.send({ 
-            content: content,
-            embeds: [embed] 
-        });
+            const content = config.pingRole ? `<@&${config.pingRole}>` : '';
+            
+            await channel.send({ 
+                content: content,
+                embeds: [embed] 
+            });
+
+        } catch (error) {
+            console.error('Booster message error:', error);
+            // Fallback: Simple message
+            await channel.send(`🎉 ${member} just boosted the server! Thank you! 🚀`);
+        }
     }
 
     // Handle boost removed
