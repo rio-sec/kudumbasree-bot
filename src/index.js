@@ -133,19 +133,27 @@ class KudumbasreeBot extends Client {
         try {
             console.log('🚀 Starting Kudumbasree Bot v2.0.0...');
             
-            // Load handlers
+            // First login
+            await this.login(process.env.DISCORD_TOKEN);
+            console.log(`✅ Logged in as ${this.user.tag}`);
+            
+            // Then load commands
             await this.loadHandlers();
+            console.log(`✅ Loaded ${this.commands.size} commands`);
             
             // Start health server
             this.startHealthServer();
             
-            // Login to Discord
-            await this.login(process.env.DISCORD_TOKEN);
-            
-            console.log(`\n🎉 ${this.user.tag} is ready!`);
+            console.log(`\n🎉 Bot is ready!`);
             console.log(`📊 Servers: ${this.guilds.cache.size}`);
             console.log(`⚡ Commands: ${this.commands.size}`);
             console.log(`👤 Developer: ${this.config.developer}`);
+            
+            // Set status
+            this.user.setActivity({
+                name: `${this.commands.size} commands`,
+                type: 3 // WATCHING
+            });
             
         } catch (error) {
             console.error('❌ Failed to start bot:', error);
