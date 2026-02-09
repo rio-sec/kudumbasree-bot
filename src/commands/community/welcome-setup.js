@@ -1,14 +1,31 @@
-const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, AttachmentBuilder } = require('discord.js');
-const axios = require('axios');
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('welcome-setup')
         .setDescription('Setup welcome messages with CUSTOM GIFs')
+        // REQUIRED options FIRST
         .addChannelOption(option =>
             option.setName('channel')
                 .setDescription('Channel for welcome messages')
                 .setRequired(true))
+        .addStringOption(option =>
+            option.setName('gif_type')
+                .setDescription('Choose GIF type')
+                .addChoices(
+                    { name: '🎉 Party GIF', value: 'party' },
+                    { name: '🤖 Anime GIF', value: 'anime' },
+                    { name: '🎮 Gaming GIF', value: 'gaming' },
+                    { name: '✨ Sparkle GIF', value: 'sparkle' },
+                    { name: '👋 Wave GIF', value: 'wave' },
+                    { name: '💖 Custom GIF', value: 'custom' }
+                )
+                .setRequired(true))  // This is REQUIRED, so it's fine here
+        // OPTIONAL options AFTER required ones
+        .addStringOption(option =>
+            option.setName('custom_gif')
+                .setDescription('Paste YOUR custom GIF URL (Required if custom type)')
+                .setRequired(false))  // Optional comes after required
         .addStringOption(option =>
             option.setName('color')
                 .setDescription('Choose a color')
@@ -22,22 +39,6 @@ module.exports = {
                     { name: '💗 Pink', value: 'Pink' },
                     { name: '🎨 Random', value: 'Random' }
                 )
-                .setRequired(false))
-        .addStringOption(option =>
-            option.setName('gif_type')
-                .setDescription('Choose GIF type')
-                .addChoices(
-                    { name: '🎉 Party GIF', value: 'party' },
-                    { name: '🤖 Anime GIF', value: 'anime' },
-                    { name: '🎮 Gaming GIF', value: 'gaming' },
-                    { name: '✨ Sparkle GIF', value: 'sparkle' },
-                    { name: '👋 Wave GIF', value: 'wave' },
-                    { name: '💖 Custom GIF', value: 'custom' }
-                )
-                .setRequired(true))
-        .addStringOption(option =>
-            option.setName('custom_gif')
-                .setDescription('Paste YOUR custom GIF URL (Required if custom type)')
                 .setRequired(false))
         .addStringOption(option =>
             option.setName('message')
@@ -54,9 +55,9 @@ module.exports = {
             await interaction.deferReply({ ephemeral: true });
             
             const channel = interaction.options.getChannel('channel');
-            const colorChoice = interaction.options.getString('color') || 'Red';
             const gifType = interaction.options.getString('gif_type');
             const customGifUrl = interaction.options.getString('custom_gif');
+            const colorChoice = interaction.options.getString('color') || 'Red';
             const customMessage = interaction.options.getString('message');
             const autoRole = interaction.options.getRole('autorole');
             
