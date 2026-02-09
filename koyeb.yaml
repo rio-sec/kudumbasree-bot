@@ -1,0 +1,30 @@
+name: kudumbasree-bot
+services:
+  - name: bot
+    instance:
+      type: nano
+    git:
+      branch: main
+    env:
+      - name: DISCORD_TOKEN
+        secret: true
+      - name: DATABASE_URL
+        secret: true
+      - name: CLIENT_ID
+        secret: false
+      - name: NODE_ENV
+        value: production
+    ports:
+      - port: 3000
+        http_path: /health
+    health_checks:
+      http:
+        path: /health
+        port: 3000
+        interval: 30
+        timeout: 5
+        healthy_threshold: 2
+        unhealthy_threshold: 3
+    routes:
+      - path: /
+        port: 3000
