@@ -1,4 +1,4 @@
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ChannelType, PermissionFlagsBits } = require('discord.js');
 
 class LoggingSystem {
     constructor(client) {
@@ -164,6 +164,77 @@ class LoggingSystem {
                 console.error('Failed to send log:', error);
             }
         }
+    }
+
+    // Create all log channels automatically
+    async createAllLogChannels(guild) {
+        const logChannels = [
+            { 
+                name: '🔊-voice-logs', 
+                type: 'VOICE_ACTIVITY',
+                color: '#3498db',
+                description: 'Voice join/leave/move events'
+            },
+            { 
+                name: '📝-message-logs', 
+                type: 'MESSAGE_ACTIVITY',
+                color: '#2ecc71',
+                description: 'Message delete/edit events'
+            },
+            { 
+                name: '👥-member-logs', 
+                type: 'MEMBER_ACTIVITY',
+                color: '#9b59b6',
+                description: 'Member join/leave/update events'
+            },
+            { 
+                name: '🎤-vc-status-logs', 
+                type: 'VOICE_STATUS',
+                color: '#f39c12',
+                description: 'Voice mute/deafen events'
+            },
+            { 
+                name: '⚙️-moderation-logs', 
+                type: 'MODERATION_ACTIONS',
+                color: '#e74c3c',
+                description: 'Role/kick/ban/timeout events'
+            }
+        ];
+
+        // Create category
+        const category = await guild.channels.create({
+            name: '📊 KUDUMNBASREE LOGS',
+            type: ChannelType.GuildCategory,
+            permissionOverwrites: [
+                {
+                    id: guild.id,
+                    deny: [PermissionFlagsBits.ViewChannel]
+                }
+            ]
+        });
+
+        const createdChannels = {};
+
+        // Create each log channel
+        for (const log of logChannels) {
+            const channel = await guild.channels.create({
+                name: log.name,
+                type: ChannelType.GuildText,
+                parent: category.id,
+                topic: `📊 ${log.description}`,
+                permissionOverwrites: [
+                    {
+                        id: guild.id,
+                        deny: [PermissionFlagsBits.ViewChannel]
+                    }
+                ]
+            });
+
+            createdChannels[log.type] = channel;
+        }
+
+        this.logChannels.set(guild.id, createdChannels);
+        return createdChannels;
     }
 
     // Setup automatic event listeners

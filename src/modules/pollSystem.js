@@ -161,7 +161,7 @@ class PollSystem {
         return emojis[num - 1] || num.toString();
     }
 
-    // Handle vote
+    // Handle vote - FIXED VERSION
     async handleVote(interaction, pollId, optionIndex) {
         const poll = this.activePolls.get(pollId);
         if (!poll) {
@@ -173,28 +173,86 @@ class PollSystem {
 
         // Check if user already voted
         if (poll.voters.has(interaction.user.id)) {
-            return interaction.reply({ 
-                content: '❌ You have already voted in this poll!', 
-                ephemeral: true 
-            });
+            // Allow changing vote
+            const currentVote = poll.userVotes?.get(interaction.user.id);
+            if (currentVote !== undefined) {
+                // Remove old vote
+                poll.votes[currentVote] = (poll.votes[currentVote] || 1) - 1;
+            }
         }
 
-        // Register vote
+        // Register new vote
         poll.votes[optionIndex] = (poll.votes[optionIndex] || 0) + 1;
         poll.voters.add(interaction.user.id);
+        
+        // Track user's vote
+        if (!poll.userVotes) poll.userVotes = new Map();
+        poll.userVotes.set(interaction.user.id, optionIndex);
 
-        // Update poll message
+        // Update poll message with real-time results
         const embed = this.createPollEmbed(poll);
+        
         try {
             const channel = await interaction.client.channels.fetch(poll.channelId);
-            const message = await channel.messages.fetch(poll.messageId);
-            await message.edit({ embeds: [embed] });
+            if (channel) {
+                const message = await channel.messages.fetch(poll.messageId);
+                if (message) {
+                    await message.edit({ embeds: [embed] });
+                    
+                    // Add reaction to show vote
+                    const numberEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
+                    const emoji = numberEmojis[optionIndex];
+                    if (emoji) {
+                        try {
+                            await message.react(emoji);
+                        } catch {}
+                    }
+                }
+            }
         } catch (error) {
             console.error('Failed to update poll:', error);
         }
 
         await interaction.reply({ 
-            content: `✅ You voted for: **${poll.options[optionIndex]}**`, 
+            content: `✅ You voted for: **${poll.options[optionIndex]}**\nVote updated in real-time!`, 
+            ephemeral: true 
+        });
+    }
+
+    // Handle results button
+    async handleResults(interaction, pollId) {
+        const poll = this.activePolls.get(pollId);
+        if (!poll) {
+            return interaction.reply({ 
+                content: '❌ Poll not found.', 
+                ephemeral: true 
+            });
+        }
+
+        const totalVotes = Object.values(poll.votes).reduce((a, b) => a + b, 0);
+        
+        const resultsEmbed = new EmbedBuilder()
+            .setColor('#4ECDC4')
+            .setTitle('📊 Poll Results (Live)')
+            .setDescription(`**${poll.question}**\n\nTotal Votes: ${totalVotes}`)
+            .setFooter({ text: 'Real-time results • Updated instantly on vote' })
+            .setTimestamp();
+
+        // Add results for each option
+        poll.options.forEach((option, index) => {
+            const votes = poll.votes[index] || 0;
+            const percentage = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
+            const bar = this.createProgressBar(percentage, 15);
+            
+            resultsEmbed.addFields({
+                name: `${index + 1}. ${option}`,
+                value: `${bar} **${percentage}%** (${votes} votes)`,
+                inline: false
+            });
+        });
+
+        await interaction.reply({ 
+            embeds: [resultsEmbed], 
             ephemeral: true 
         });
     }

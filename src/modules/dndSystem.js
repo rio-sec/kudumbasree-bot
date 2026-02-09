@@ -241,9 +241,11 @@ class DnDSystem {
         const buttonId = interaction.customId;
         const member = interaction.member;
 
+        // Defer reply first
+        await interaction.deferReply({ ephemeral: true });
+
         switch (buttonId) {
             case 'dnd_join':
-                await interaction.deferReply({ ephemeral: true });
                 const result = await this.createPrivateRoom(interaction);
                 
                 if (result.error) {
@@ -255,8 +257,13 @@ class DnDSystem {
                 }
                 break;
 
+            case 'dnd_settings':
+                await interaction.editReply({ 
+                    content: '🔧 Room Settings:\n\n• User Limit: 5\n• Privacy: Private\n• Auto-cleanup: 5 min after empty\n\nUse `/dnd-setup` to reconfigure category.' 
+                });
+                break;
+
             case 'dnd_leave':
-                await interaction.deferReply({ ephemeral: true });
                 const deleteResult = await this.deleteRoom(member.id, interaction.guild);
                 
                 if (deleteResult.error) {
@@ -280,31 +287,38 @@ class DnDSystem {
                     timestamp: new Date()
                 };
                 
-                await interaction.reply({ embeds: [statsEmbed], ephemeral: true });
+                await interaction.editReply({ embeds: [statsEmbed] });
                 break;
 
             case 'dnd_invite':
-                // Create invite modal
-                const modal = new ModalBuilder()
-                    .setCustomId('dnd_invite_modal')
-                    .setTitle('Invite User to Room');
+                await interaction.editReply({ 
+                    content: '📨 To invite users to your private room:\n1. Right-click your voice channel\n2. Click "Copy Voice Channel Link"\n3. Share the link with friends\n\nOr mention users in the room channel: `/invite @user1 @user2`'
+                });
+                break;
 
-                const userIdInput = new TextInputBuilder()
-                    .setCustomId('user_id')
-                    .setLabel("User ID to invite")
-                    .setStyle(TextInputStyle.Short)
-                    .setRequired(true);
-
-                const actionRow = new ActionRowBuilder().addComponents(userIdInput);
-                modal.addComponents(actionRow);
-
-                await interaction.showModal(modal);
+            case 'dnd_visit':
+                const rooms = [];
+                for (const [userId, roomId] of this.activeRooms) {
+                    const room = interaction.guild.channels.cache.get(roomId);
+                    if (room) {
+                        const owner = interaction.guild.members.cache.get(userId);
+                        rooms.push(`• ${room} (Owner: ${owner?.user?.username || 'Unknown'})`);
+                    }
+                }
+                
+                const roomsEmbed = {
+                    color: 0x9b59b6,
+                    title: '👥 Available Private Rooms',
+                    description: rooms.length > 0 ? rooms.join('\n') : 'No active rooms currently.',
+                    footer: { text: 'Click JOIN DND to create your own!' }
+                };
+                
+                await interaction.editReply({ embeds: [roomsEmbed] });
                 break;
 
             default:
-                await interaction.reply({ 
-                    content: '🚧 This feature is coming soon!', 
-                    ephemeral: true 
+                await interaction.editReply({ 
+                    content: '🚧 Feature in development! Check back soon.' 
                 });
         }
     }

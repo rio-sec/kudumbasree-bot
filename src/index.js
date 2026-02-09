@@ -6,6 +6,7 @@ const path = require('path');
 const http = require('http');
 const DnDSystem = require('./modules/dndSystem');
 const LoggingSystem = require('./modules/loggingSystem');
+const WelcomeSystem = require('./modules/welcomeSystem');
 const PollSystem = require('./modules/pollSystem');
 const StatusRotator = require('./utils/statusRotator');
 
@@ -52,6 +53,7 @@ class KudumbasreeBot extends Client {
         // Initialize systems
         this.dndSystem = new DnDSystem(this);
         this.loggingSystem = new LoggingSystem(this);
+        this.welcomeSystem = new WelcomeSystem(this);
         this.pollSystem = new PollSystem();
         this.statusRotator = new StatusRotator(this);
     }
@@ -183,6 +185,26 @@ class KudumbasreeBot extends Client {
 // Create and start bot
 const bot = new KudumbasreeBot();
 bot.start();
+
+// Setup event listeners
+bot.on('guildMemberAdd', (member) => {
+    if (bot.welcomeSystem) {
+        bot.welcomeSystem.handleMemberJoin(member);
+    }
+});
+
+bot.on('guildMemberUpdate', (oldMember, newMember) => {
+    if (bot.welcomeSystem) {
+        bot.welcomeSystem.handleGuildMemberUpdate(oldMember, newMember);
+    }
+});
+
+bot.on('ready', () => {
+    if (bot.loggingSystem) {
+        bot.loggingSystem.setupListeners();
+        console.log('✅ Logging system initialized');
+    }
+});
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
