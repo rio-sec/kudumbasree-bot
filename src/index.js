@@ -199,11 +199,32 @@ bot.on('guildMemberUpdate', (oldMember, newMember) => {
     }
 });
 
-bot.on('ready', () => {
-    if (bot.loggingSystem) {
-        bot.loggingSystem.setupListeners();
-        console.log('✅ Logging system initialized');
+bot.on('ready', async () => {
+    console.log(`\n✅ ${bot.user.tag} is online!`);
+    
+    // Initialize logging system for all guilds
+    console.log('📊 Initializing logging system...');
+    for (const [guildId, guild] of bot.guilds.cache) {
+        try {
+            await bot.loggingSystem.initializeGuild(guild);
+            console.log(`   ✅ ${guild.name}`);
+        } catch (error) {
+            console.log(`   ❌ ${guild.name}: ${error.message}`);
+        }
     }
+    
+    // Setup logging listeners
+    bot.loggingSystem.setupListeners();
+    
+    // Start status rotation
+    if (bot.statusRotator) {
+        bot.statusRotator.startRotation();
+    }
+    
+    console.log(`📈 Servers: ${bot.guilds.cache.size}`);
+    console.log(`⚡ Commands: ${bot.commands?.size || 0}`);
+    console.log(`📊 Logging: Active`);
+    console.log(`👤 Developer: ${bot.config.developer}`);
 });
 
 // Graceful shutdown
