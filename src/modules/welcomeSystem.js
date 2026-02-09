@@ -5,26 +5,16 @@ class WelcomeSystem {
         this.client = client;
         this.welcomeConfigs = new Map();
         
-        // Use direct GIF URLs, not Tenor links
-        this.defaultWelcomeGif = 'https://media.tenor.com/ISx2jQ5l8eAAAAAC/welcome.gif'; // Direct GIF
-        this.defaultBoosterGif = 'https://media.tenor.com/YpJ2F4YVhU0AAAAC/celebration.gif'; // Direct GIF
-        
-        // Alternative GIF URLs
-        this.alternativeGifs = {
-            welcome: [
-                'https://media.tenor.com/ISx2jQ5l8eAAAAAC/welcome.gif',
-                'https://media.tenor.com/0AVbKGY_MxMAAAAM/welcome.gif',
-                'https://media.tenor.com/t3P7OVB_kUEAAAAM/anime-welcome.gif',
-                'https://media.giphy.com/media/26tknCqiJrBQG6DrC/giphy.gif',
-                'https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif'
-            ],
-            booster: [
-                'https://media.tenor.com/YpJ2F4YVhU0AAAAC/celebration.gif',
-                'https://media.tenor.com/QJvwqT7aBkYAAAAM/woohoo-celebrate.gif',
-                'https://media.giphy.com/media/26tknCqiJrBQG6DrC/giphy.gif',
-                'https://media.giphy.com/media/l0HU7JI1uHRQmQqk0/giphy.gif'
-            ]
+        // FIXED: Use simple color names instead of hex in constructor
+        this.defaultColors = {
+            welcome: '#FF6B6B',  // Red
+            booster: '#9B59B6',  // Purple
+            goodbye: '#3498DB'    // Blue
         };
+        
+        // Use direct GIF URLs
+        this.defaultWelcomeGif = 'https://media.tenor.com/ISx2jQ5l8eAAAAAC/welcome.gif';
+        this.defaultBoosterGif = 'https://media.tenor.com/YpJ2F4YVhU0AAAAC/celebration.gif';
     }
 
     // Convert Tenor URL to direct GIF URL
@@ -52,6 +42,38 @@ class WelcomeSystem {
         
         // Default fallback
         return tenorUrl;
+    }
+
+    // SAFE: Convert any color input to valid hex
+    safeColor(color) {
+        if (!color) return this.defaultColors.welcome;
+        
+        // If it's already a hex color
+        if (typeof color === 'string' && color.startsWith('#')) {
+            // Validate hex color
+            const hexRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+            return hexRegex.test(color) ? color : this.defaultColors.welcome;
+        }
+        
+        // If it's a color name
+        const colorMap = {
+            'red': '#FF0000',
+            'blue': '#0000FF',
+            'green': '#00FF00',
+            'yellow': '#FFFF00',
+            'purple': '#800080',
+            'orange': '#FFA500',
+            'pink': '#FFC0CB',
+            'cyan': '#00FFFF',
+            'white': '#FFFFFF',
+            'random': this.getRandomHexColor()
+        };
+        
+        return (typeof color === 'string' && colorMap[color.toLowerCase()]) || this.defaultColors.welcome;
+    }
+    
+    getRandomHexColor() {
+        return '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
     }
 
     // Setup welcome system for a guild
@@ -95,16 +117,17 @@ class WelcomeSystem {
         const channel = member.guild.channels.cache.get(config.channelId);
         if (!channel) return;
 
-        // Convert GIF URL if needed
-        const safeGifUrl = this.convertTenorUrl(config.gifUrl || this.defaultWelcomeGif);
-        
+        // SAFE: Use safeColor method and select GIF
+        const safeColor = this.safeColor(config.embedColor);
+        const safeGifUrl = config.gifUrl || this.defaultWelcomeGif;
+
         // Parse message
         const message = this.parseWelcomeMessage(config.message, member);
-        
+
         try {
             // Create embed
             const embed = new EmbedBuilder()
-                .setColor(config.embedColor || '#FF6B6B')
+                .setColor(safeColor)
                 .setTitle(`🎉 Welcome to ${member.guild.name}!`)
                 .setDescription(message)
                 .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 512 }))
@@ -136,7 +159,7 @@ class WelcomeSystem {
         if (config.sendDM && !member.user.bot) {
             try {
                 const dmEmbed = new EmbedBuilder()
-                    .setColor(config.embedColor)
+                    .setColor(safeColor)
                     .setTitle(`Welcome to ${member.guild.name}!`)
                     .setDescription(this.parseWelcomeMessage(config.dmMessage, member))
                     .setThumbnail(member.guild.iconURL())
@@ -189,8 +212,9 @@ class WelcomeSystem {
         const channel = member.guild.channels.cache.get(config.channelId);
         if (!channel) return;
 
-        // Convert GIF URL if needed
-        const safeGifUrl = this.convertTenorUrl(config.gifUrl || this.defaultBoosterGif);
+        // SAFE: Use safeColor and GIF selection
+        const safeColor = this.safeColor(config.embedColor);
+        const safeGifUrl = config.gifUrl || this.defaultBoosterGif;
         
         const boostLevel = member.premiumSince ? '2' : '1';
         const totalBoosts = member.guild.premiumSubscriptionCount || 0;
@@ -205,7 +229,7 @@ class WelcomeSystem {
         try {
             // Create embed
             const embed = new EmbedBuilder()
-                .setColor(config.embedColor || '#9b59b6')
+                .setColor(safeColor || '#9b59b6')
                 .setTitle('🚀 NEW SERVER BOOSTER!')
                 .setDescription(message)
                 .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 512 }))
