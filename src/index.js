@@ -4,6 +4,10 @@ const dotenv = require('dotenv');
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
+const DnDSystem = require('./modules/dndSystem');
+const LoggingSystem = require('./modules/loggingSystem');
+const PollSystem = require('./modules/pollSystem');
+const StatusRotator = require('./utils/statusRotator');
 
 dotenv.config();
 
@@ -44,6 +48,12 @@ class KudumbasreeBot extends Client {
             console.log('⚠️  Running without database - using memory storage');
             this.db = null;
         }
+
+        // Initialize systems
+        this.dndSystem = new DnDSystem(this);
+        this.loggingSystem = new LoggingSystem(this);
+        this.pollSystem = new PollSystem();
+        this.statusRotator = new StatusRotator(this);
     }
 
     initializeDatabase() {
@@ -133,26 +143,34 @@ class KudumbasreeBot extends Client {
         try {
             console.log('🚀 Starting Kudumbasree Bot v2.0.0...');
             
-            // First login
+            // Login first
             await this.login(process.env.DISCORD_TOKEN);
             console.log(`✅ Logged in as ${this.user.tag}`);
             
-            // Then load commands
+            // Start status rotation after bot is ready
+            this.statusRotator.startRotation();
+            console.log('✅ Status rotation started');
+            
+            // Load handlers
             await this.loadHandlers();
-            console.log(`✅ Loaded ${this.commands.size} commands`);
+            
+            // Initialize systems
+            this.loggingSystem.setupListeners();
+            console.log('✅ Logging system initialized');
             
             // Start health server
             this.startHealthServer();
             
-            console.log(`\n🎉 Bot is ready!`);
+            console.log(`\n🎉 Bot is fully ready!`);
             console.log(`📊 Servers: ${this.guilds.cache.size}`);
             console.log(`⚡ Commands: ${this.commands.size}`);
+            console.log(`📈 Systems: DnD, Logging, Polls`);
             console.log(`👤 Developer: ${this.config.developer}`);
             
             // Set status
             this.user.setActivity({
-                name: `${this.commands.size} commands`,
-                type: 3 // WATCHING
+                name: `with ${this.commands.size} features`,
+                type: 0 // PLAYING
             });
             
         } catch (error) {

@@ -5,48 +5,61 @@ require('dotenv').config();
 
 const commands = [];
 const foldersPath = path.join(__dirname, 'commands');
-const commandFolders = fs.readdirSync(foldersPath);
 
-for (const folder of commandFolders) {
-    const commandsPath = path.join(foldersPath, folder);
-    const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+console.log('📁 Loading commands from:', foldersPath);
+
+// Load all command files
+function loadCommands(directory) {
+    const items = fs.readdirSync(directory, { withFileTypes: true });
     
-    for (const file of commandFiles) {
-        const filePath = path.join(commandsPath, file);
-        const command = require(filePath);
+    for (const item of items) {
+        const fullPath = path.join(directory, item.name);
         
-        if ('data' in command && 'execute' in command) {
-            commands.push(command.data.toJSON());
-            console.log(`✅ ${command.data.name}`);
-        } else {
-            console.log(`❌ ${file} is missing required properties`);
+        if (item.isDirectory()) {
+            loadCommands(fullPath);
+        } else if (item.name.endsWith('.js')) {
+            try {
+                const command = require(fullPath);
+                
+                if ('data' in command && 'execute' in command) {
+                    commands.push(command.data.toJSON());
+                    console.log(`✅ ${command.data.name}`);
+                } else {
+                    console.log(`❌ ${item.name} - missing properties`);
+                }
+            } catch (error) {
+                console.error(`❌ Failed to load ${item.name}:`, error.message);
+            }
         }
     }
 }
 
-const rest = new REST().setToken(process.env.DISCORD_TOKEN);
+loadCommands(foldersPath);
+
+console.log(`\n📊 Total commands found: ${commands.length}`);
+
+const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 
 (async () => {
     try {
-        console.log(`\n🔄 Deploying ${commands.length} commands...`);
+        console.log(`\n🔄 Deploying ${commands.length} commands globally...`);
         
-        // For global commands
         const data = await rest.put(
             Routes.applicationCommands(process.env.CLIENT_ID),
             { body: commands }
         );
         
-        console.log(`✅ Successfully deployed ${data.length} commands globally!`);
+        console.log(`\n🎉 Successfully deployed ${data.length} commands!`);
         console.log('\n📋 Command List:');
+        console.log('================');
         data.forEach(cmd => console.log(`  /${cmd.name} - ${cmd.description}`));
         
-        // Generate invite link
-        console.log(`\n🔗 Invite Link:`);
+        console.log('\n🔗 Invite Link:');
         console.log(`https://discord.com/oauth2/authorize?client_id=${process.env.CLIENT_ID}&scope=bot%20applications.commands&permissions=268435456`);
         
     } catch (error) {
-        console.error('❌ Deployment failed:', error);
-        
+        console.error('\n❌ Deployment failed:');
+        console.error('Error:', error.message);
         if (error.code === 429) {
             console.log('⏳ Rate limited. Wait and try again.');
         }
