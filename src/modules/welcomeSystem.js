@@ -12,9 +12,22 @@ class WelcomeSystem {
             goodbye: '#3498DB'    // Blue
         };
         
-        // Use direct GIF URLs
-        this.defaultWelcomeGif = 'https://media.tenor.com/ISx2jQ5l8eAAAAAC/welcome.gif';
-        this.defaultBoosterGif = 'https://media.tenor.com/YpJ2F4YVhU0AAAAC/celebration.gif';
+        // WORKING GIF URLs (Discord compatible)
+        this.defaultGifs = {
+            welcome: 'https://i.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif',  // Party
+            booster: 'https://i.giphy.com/media/xT8qBhrlNooHBYR9f6/giphy.gif', // Sparkle
+            goodbye: 'https://i.giphy.com/media/3o7abAHdYvZdBNnGZq/giphy.gif'  // Wave
+        };
+        
+        this.gifThemes = {
+            party: 'https://i.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif',
+            anime: 'https://i.giphy.com/media/26tknCqiJrBQG6DrC/giphy.gif',
+            gaming: 'https://i.giphy.com/media/l0HU7JI1uHRQmQqk0/giphy.gif',
+            sparkle: 'https://i.giphy.com/media/xT8qBhrlNooHBYR9f6/giphy.gif',
+            wave: 'https://i.giphy.com/media/3o7abAHdYvZdBNnGZq/giphy.gif',
+            celebration: 'https://i.giphy.com/media/8Iv5lqKwKsZ2g/giphy.gif',
+            hello: 'https://i.giphy.com/media/XIqCQx02E1U9W/giphy.gif'
+        };
     }
 
     // Convert Tenor URL to direct GIF URL
@@ -28,7 +41,7 @@ class WelcomeSystem {
         if (tenorUrl.includes('tenor.com/view')) {
             // This is a view page, not direct GIF
             // Return a default GIF instead
-            return this.defaultWelcomeGif;
+            return this.defaultGifs.welcome;
         }
         
         // If it's a Tenor GIF ID
@@ -82,8 +95,8 @@ class WelcomeSystem {
             channelId,
             enabled: true,
             message: config.message || "Welcome {user} to **{server}**! 🎉 You're member #{count}",
-            gifUrl: config.gifUrl || this.defaultWelcomeGif,
-            embedColor: config.embedColor || '#FF6B6B',
+            gifUrl: config.gifUrl || this.defaultGifs.welcome,
+            embedColor: config.embedColor || 'Red',
             sendDM: config.sendDM !== false,
             dmMessage: config.dmMessage || "Welcome to **{server}**! Check out the rules and have fun!",
             autoRoleId: config.autoRoleId || null
@@ -98,8 +111,8 @@ class WelcomeSystem {
         const boosterConfig = {
             channelId,
             enabled: true,
-            gifUrl: config.gifUrl || this.defaultBoosterGif,
-            embedColor: config.embedColor || '#9b59b6',
+            gifUrl: config.gifUrl || this.defaultGifs.booster,
+            embedColor: config.embedColor || 'Purple',
             message: config.message || "{user} just boosted **{server}**! 🚀\n**Level:** {boostLevel}\n**Total Boosts:** {totalBoosts}",
             pingRole: config.pingRole || null
         };
@@ -119,7 +132,7 @@ class WelcomeSystem {
 
         // SAFE: Use safeColor method and select GIF
         const safeColor = this.safeColor(config.embedColor);
-        const safeGifUrl = config.gifUrl || this.defaultWelcomeGif;
+        const safeGifUrl = config.gifUrl || this.defaultGifs.welcome;
 
         // Parse message
         const message = this.parseWelcomeMessage(config.message, member);
@@ -214,7 +227,7 @@ class WelcomeSystem {
 
         // SAFE: Use safeColor and GIF selection
         const safeColor = this.safeColor(config.embedColor);
-        const safeGifUrl = config.gifUrl || this.defaultBoosterGif;
+        const safeGifUrl = config.gifUrl || this.defaultGifs.booster;
         
         const boostLevel = member.premiumSince ? '2' : '1';
         const totalBoosts = member.guild.premiumSubscriptionCount || 0;
@@ -290,9 +303,11 @@ class WelcomeSystem {
             .replace(/{mention}/g, member.toString());
     }
 
-    // Get random booster GIF
+    // Get random booster GIF (from gifThemes)
     getRandomBoosterGif() {
-        return this.boosterGifs[Math.floor(Math.random() * this.boosterGifs.length)];
+        const vals = Object.values(this.gifThemes || {});
+        if (!vals.length) return this.defaultGifs.booster;
+        return vals[Math.floor(Math.random() * vals.length)];
     }
 
     // Update configuration

@@ -10,27 +10,30 @@ module.exports = {
                 .setRequired(true))
         .addStringOption(option =>
             option.setName('color')
-                .setDescription('Embed color (e.g., Red, Blue, Green, or #FF6B6B)')
+                .setDescription('Choose a color')
                 .addChoices(
-                    { name: 'Red', value: 'Red' },
-                    { name: 'Blue', value: 'Blue' },
-                    { name: 'Green', value: 'Green' },
-                    { name: 'Yellow', value: 'Yellow' },
-                    { name: 'Purple', value: 'Purple' },
-                    { name: 'Orange', value: 'Orange' },
-                    { name: 'Pink', value: 'Pink' },
-                    { name: 'Cyan', value: 'Cyan' },
-                    { name: 'White', value: 'White' },
-                    { name: 'Random', value: 'Random' }
+                    { name: '🔴 Red', value: 'Red' },
+                    { name: '🔵 Blue', value: 'Blue' },
+                    { name: '🟢 Green', value: 'Green' },
+                    { name: '🟡 Yellow', value: 'Yellow' },
+                    { name: '🟣 Purple', value: 'Purple' },
+                    { name: '🎨 Random', value: 'Random' }
                 )
                 .setRequired(false))
         .addStringOption(option =>
             option.setName('gif')
-                .setDescription('GIF URL (optional) - Use direct .gif link')
+                .setDescription('Choose a GIF theme')
+                .addChoices(
+                    { name: '🎉 Party Welcome', value: 'party' },
+                    { name: '🤖 Anime Welcome', value: 'anime' },
+                    { name: '🎮 Gaming Welcome', value: 'gaming' },
+                    { name: '✨ Sparkle Welcome', value: 'sparkle' },
+                    { name: '👋 Wave Welcome', value: 'wave' }
+                )
                 .setRequired(false))
         .addStringOption(option =>
             option.setName('message')
-                .setDescription('Welcome message (optional)')
+                .setDescription('Custom welcome message (optional)')
                 .setRequired(false))
         .addRoleOption(option =>
             option.setName('autorole')
@@ -43,30 +46,41 @@ module.exports = {
             await interaction.deferReply({ ephemeral: true });
             
             const channel = interaction.options.getChannel('channel');
-            const colorChoice = interaction.options.getString('color') || 'Random';
-            const gifUrl = interaction.options.getString('gif') || 
-                'https://media.tenor.com/ISx2jQ5l8eAAAAAC/welcome.gif';
-            const message = interaction.options.getString('message') || 
-                "Welcome {user} to **{server}**! 🎉\nYou're member #{count}";
+            const colorChoice = interaction.options.getString('color') || 'Red';
+            const gifChoice = interaction.options.getString('gif') || 'party';
+            const customMessage = interaction.options.getString('message');
             const autoRole = interaction.options.getRole('autorole');
             
-            // Convert color name to hex
-            const colorMap = {
-                'Red': '#FF0000',
-                'Blue': '#0000FF',
-                'Green': '#00FF00',
-                'Yellow': '#FFFF00',
-                'Purple': '#800080',
-                'Orange': '#FFA500',
-                'Pink': '#FFC0CB',
-                'Cyan': '#00FFFF',
-                'White': '#FFFFFF',
+            // Color mapping (using Discord.js ColorResolvable)
+            const colors = {
+                'Red': 'Red',
+                'Blue': 'Blue', 
+                'Green': 'Green',
+                'Yellow': 'Yellow',
+                'Purple': 'Purple',
                 'Random': this.getRandomColor()
             };
             
-            const colorHex = colorMap[colorChoice] || '#FF6B6B';
+            // WORKING GIF URLs (Discord-compatible)
+            const gifs = {
+                'party': 'https://i.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif',
+                'anime': 'https://i.giphy.com/media/26tknCqiJrBQG6DrC/giphy.gif',
+                'gaming': 'https://i.giphy.com/media/l0HU7JI1uHRQmQqk0/giphy.gif',
+                'sparkle': 'https://i.giphy.com/media/xT8qBhrlNooHBYR9f6/giphy.gif',
+                'wave': 'https://i.giphy.com/media/3o7abAHdYvZdBNnGZq/giphy.gif'
+            };
             
-            // Initialize welcome system if not exists
+            const color = colors[colorChoice];
+            const gifUrl = gifs[gifChoice];
+            
+            // Default message
+            const message = customMessage || 
+                "🎉 **Welcome {user} to {server}!** 🎉\n\n" +
+                "✨ You're member **#{count}**\n" +
+                "📅 Account created: <t:{created}:R>\n" +
+                "👥 **Enjoy your stay!**";
+            
+            // Initialize welcome system
             if (!interaction.client.welcomeSystem) {
                 const WelcomeSystem = require('../../modules/welcomeSystem');
                 interaction.client.welcomeSystem = new WelcomeSystem(interaction.client);
@@ -76,60 +90,70 @@ module.exports = {
             await interaction.client.welcomeSystem.setupWelcome(interaction.guild.id, channel.id, {
                 message,
                 gifUrl,
-                embedColor: colorHex,
+                embedColor: color,
                 sendDM: true,
                 autoRoleId: autoRole?.id
             });
             
-            // Create confirmation embed
-            const embed = new EmbedBuilder()
-                .setColor(colorHex)
-                .setTitle('✅ Welcome System Configured!')
-                .setDescription(`Welcome messages will be sent to ${channel}`)
-                .addFields(
-                    { name: '📁 Channel', value: `${channel}`, inline: true },
-                    { name: '🎨 Color', value: colorChoice, inline: true },
-                    { name: '🎭 Auto-Role', value: autoRole ? `${autoRole}` : 'None', inline: true },
-                    { name: '📝 Message', value: '```' + message.substring(0, 100) + '...```', inline: false },
-                    { name: '🎬 GIF', value: `[View GIF](${gifUrl})`, inline: false },
-                    { name: '✨ Variables', value: '`{user}` - Member mention\n`{server}` - Server name\n`{count}` - Member count', inline: false }
+            // Create PREVIEW embed (this will show GIF)
+            const previewEmbed = new EmbedBuilder()
+                .setColor(color)
+                .setTitle('🎉 **WELCOME PREVIEW**')
+                .setDescription(message
+                    .replace(/{user}/g, interaction.user.toString())
+                    .replace(/{server}/g, interaction.guild.name)
+                    .replace(/{count}/g, interaction.guild.memberCount)
+                    .replace(/{created}/g, Math.floor(interaction.user.createdTimestamp/1000))
                 )
-                .setImage(gifUrl)
+                .setImage(gifUrl)  // This should load now
+                .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true, size: 256 }))
                 .setFooter({ 
-                    text: `Use /welcome-test to test the system`,
+                    text: `Welcome System • ${interaction.guild.name}`,
                     iconURL: interaction.guild.iconURL()
                 })
                 .setTimestamp();
             
-            await interaction.editReply({ embeds: [embed] });
-            
-            // Send test message to the channel
-            const testEmbed = new EmbedBuilder()
-                .setColor(colorHex)
-                .setTitle('🎉 Test Welcome Message')
-                .setDescription(message.replace(/{user}/g, interaction.user.toString())
-                                      .replace(/{server}/g, interaction.guild.name)
-                                      .replace(/{count}/g, interaction.guild.memberCount))
-                .setImage(gifUrl)
-                .setFooter({ text: 'This is a test welcome message' })
-                .setTimestamp();
-            
-            await channel.send({ 
-                content: `${interaction.user} Test welcome message:`,
-                embeds: [testEmbed] 
+            // Send preview to current channel (so you can see GIF)
+            await interaction.channel.send({ 
+                content: `**🎊 WELCOME SYSTEM PREVIEW**\nConfigured by ${interaction.user}`,
+                embeds: [previewEmbed] 
             });
+            
+            // Create confirmation embed
+            const confirmEmbed = new EmbedBuilder()
+                .setColor(color)
+                .setTitle('✅ **WELCOME SYSTEM CONFIGURED!**')
+                .setDescription(`Welcome messages will be sent to ${channel}`)
+                .addFields(
+                    { name: '📁 Channel', value: `${channel}`, inline: true },
+                    { name: '🎨 Color', value: colorChoice, inline: true },
+                    { name: '🎬 GIF Theme', value: gifChoice, inline: true },
+                    { name: '🎭 Auto-Role', value: autoRole ? `${autoRole}` : 'None', inline: true },
+                    { name: '📝 Message', value: '```' + message.substring(0, 150) + '...```', inline: false },
+                    { name: '✨ Variables', value: '`{user}` - Member\n`{server}` - Server\n`{count}` - #Member\n`{created}` - Account age', inline: false }
+                )
+                .setThumbnail(gifUrl)
+                .setFooter({ 
+                    text: 'Next member will receive this welcome automatically!',
+                    iconURL: interaction.guild.iconURL()
+                });
+            
+            await interaction.editReply({ embeds: [confirmEmbed] });
+            
+            console.log(`✅ Welcome setup complete for ${interaction.guild.name}`);
+            console.log(`🎬 GIF URL used: ${gifUrl}`);
             
         } catch (error) {
             console.error('Welcome setup error:', error);
             await interaction.editReply({
-                content: `❌ Error: ${error.message}\n\n**Try these fixes:**\n1. Use color from dropdown menu\n2. Use direct GIF URL ending with .gif\n3. Check bot permissions in ${channel}`,
+                content: `❌ **Error:** ${error.message}\n\n**Quick fix:**\n1. Try different GIF theme\n2. Check channel permissions\n3. Use simpler message`,
                 ephemeral: true
             });
         }
     },
     
     getRandomColor() {
-        const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#9B59B6', '#3498DB', '#E74C3C'];
+        const colors = ['Red', 'Blue', 'Green', 'Yellow', 'Purple', 'Orange', 'Pink'];
         return colors[Math.floor(Math.random() * colors.length)];
     }
 };
