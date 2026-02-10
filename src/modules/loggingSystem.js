@@ -237,68 +237,19 @@ class LoggingSystem {
 
     // Setup event listeners
     setupListeners() {
+        // Check if listeners already setup
+        if (this.listenersSetup) {
+            console.log('⚠️ Listeners already setup, skipping...');
+            return;
+        }
+
+        console.log('✅ Setting up logging listeners...');
         const client = this.client;
 
         // ========== VOICE EVENTS ==========
-        client.on('voiceStateUpdate', async (oldState, newState) => {
-            if (!oldState.channelId && newState.channelId) {
-                // User joined voice
-                await this.log('VOICE_JOIN', {
-                    user: newState.member.user,
-                    channel: newState.channel,
-                    guild: newState.guild
-                });
-            } else if (oldState.channelId && !newState.channelId) {
-                // User left voice
-                await this.log('VOICE_LEAVE', {
-                    user: oldState.member.user,
-                    channel: oldState.channel,
-                    guild: oldState.guild
-                });
-            } else if (oldState.channelId !== newState.channelId) {
-                // User moved voice channels
-                await this.log('VOICE_MOVE', {
-                    user: newState.member.user,
-                    channel: newState.channel,
-                    oldChannel: oldState.channel,
-                    guild: newState.guild
-                });
-            }
-            
-            // Voice status changes
-            if (oldState.mute !== newState.mute) {
-                await this.log(newState.mute ? 'VOICE_MUTE' : 'VOICE_UNMUTE', {
-                    user: newState.member.user,
-                    channel: newState.channel,
-                    guild: newState.guild,
-                    selfMuted: newState.mute
-                });
-            }
-            
-            if (oldState.deaf !== newState.deaf) {
-                await this.log(newState.deaf ? 'VOICE_DEAFEN' : 'VOICE_UNDEAFEN', {
-                    user: newState.member.user,
-                    channel: newState.channel,
-                    guild: newState.guild,
-                    selfDeafened: newState.deaf
-                });
-            }
-            
-            if (oldState.serverMute !== newState.serverMute) {
-                await this.log(newState.serverMute ? 'SERVER_MUTE' : 'SERVER_UNMUTE', {
-                    user: newState.member.user,
-                    channel: newState.channel,
-                    guild: newState.guild
-                });
-            }
-            
-            if (oldState.serverDeaf !== newState.serverDeaf) {
-                await this.log(newState.serverDeaf ? 'SERVER_DEAFEN' : 'SERVER_UNDEAFEN', {
-                    user: newState.member.user,
-                    channel: newState.channel,
-                    guild: newState.guild
-                });
-            }
+        // Route voice updates to a single handler to avoid duplicate logging
+        client.on('voiceStateUpdate', (oldState, newState) => {
+            this.handleVoiceStateUpdate(oldState, newState);
         });
 
         // ========== MESSAGE EVENTS ==========
@@ -394,7 +345,44 @@ class LoggingSystem {
             });
         });
 
+        this.listenersSetup = true;
         console.log('✅ Logging system listeners activated');
+    }
+
+    // Handle voice state updates with de-duplication and only meaningful events
+    handleVoiceStateUpdate(oldState, newState) {
+        // Only log if there's an actual change
+        if (!oldState.channelId && newState.channelId) {
+            // User joined voice
+            this.log('VOICE_JOIN', {
+                user: newState.member.user,
+                channel: newState.channel,
+                guild: newState.guild
+            });
+            return;
+        }
+
+        if (oldState.channelId && !newState.channelId) {
+            // User left voice
+            this.log('VOICE_LEAVE', {
+                user: oldState.member.user,
+                channel: oldState.channel,
+                guild: oldState.guild
+            });
+            return;
+        }
+
+        if (oldState.channelId !== newState.channelId) {
+            // User moved voice channels
+            this.log('VOICE_MOVE', {
+                user: newState.member.user,
+                channel: newState.channel,
+                oldChannel: oldState.channel,
+                guild: newState.guild
+            });
+        }
+
+        // Intentionally skip mute/deafen/server mute/deafen logging to reduce spam
     }
 
     // Create log embed
