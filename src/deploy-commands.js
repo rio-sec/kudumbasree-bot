@@ -8,6 +8,11 @@ const foldersPath = path.join(__dirname, 'commands');
 
 console.log('📁 Loading commands from:', foldersPath);
 
+// Ensure these commands are loaded:
+// They'll be automatically loaded from src/commands/moderation and all other subdirectories
+// - say.js
+// - purge.js
+
 // Load all command files
 function loadCommands(directory) {
     const items = fs.readdirSync(directory, { withFileTypes: true });
